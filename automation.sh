@@ -54,12 +54,60 @@ timestamp=$(date '+%d%m%Y-%H%M%S')
 cd /var/log/apache2
  tar -cvf /tmp/${myname}-httpd-logs-$timestamp.tar *.log
 
-# Installing awscli 
+# Bookkeeping
+
+mysize=$(stat -c%s /tmp/${myname}-httpd-logs-$timestamp.tar)
+if [ -f /var/www/html/inventory.html ] 
+then
+ echo '<br> httpd-logs' >> /var/www/html/inventory.html
+ echo '&ensp;' $timestamp >> /var/www/html/inventory.html
+ echo '&ensp;' 'tar' >> /var/www/html/inventory.html
+ echo '&emsp;' $mysize 'Bytes'>> /var/www/html/inventory.html
+else
+ touch /var/www/html/inventory.html
+ echo "<!DOCTYPE html>
+<html>
+   <head></head>
+   <body>
+      <header>
+<b>Date &emsp;&emsp;&emsp;
+Created &emsp;&emsp;&emsp;&emsp;
+Type &ensp;
+Size</b>
+  </header>
+   </body>
+</html>
+" >> /var/www/html/inventory.html
+ echo '<br> httpd-logs' >> /var/www/html/inventory.html
+ echo '&ensp;' $timestamp >> /var/www/html/inventory.html
+ echo '&ensp;' 'tar' >> /var/www/html/inventory.html
+ echo '&emsp;' $mysize 'Bytes'>> /var/www/html/inventory.html
+fi
+
+# Installing awscli
+
  apt update
  apt -y install awscli
-
 
 #Copy to s3 bucket
 aws s3 \
 cp /tmp/${myname}-httpd-logs-${timestamp}.tar \
 s3://${s3_bucket}/${myname}-httpd-logs-${timestamp}.tar
+
+#Create cron job
+
+if [ -f /etc/cron.d/automation ]
+then 
+	echo "Updating Cron Job"
+        echo -n "" > /etc/cron.d/automation
+	echo "36 1 * * * root /root/Automation_Project/automation.sh" >> /etc/cron.d/automation
+	crontab /etc/cron.d/automation
+	echo "Done"
+else
+	touch /etc/cron.d/automation
+	echo "New Cron Job is creating"
+	echo "36 1 * * * root /root/Automation_Project/automation.sh" >> /etc/cron.d/automation
+	crontab /etc/cron.d/automation
+	echo "Done"
+fi
+
